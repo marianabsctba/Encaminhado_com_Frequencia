@@ -559,7 +559,7 @@ $('#passear').onclick = (e) => {
   e.stopPropagation(); $('#fim').style.display = 'none';
   controls.enabled = true; controls.autoRotate = true;
 };
-addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) avancar(); });
+addEventListener('pointerdown', (e) => { if (!e.target.closest?.('button')) avancar(); });
 addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); avancar(); } });
 controls.addEventListener('start', () => controls.autoRotate = false);
 
