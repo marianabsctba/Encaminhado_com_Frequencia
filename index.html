@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Encaminhado com Frequência</title>
+<meta name="description" content="Você é o vírus. Começa num pendrive esquecido na LAN House de Santa Rita do Oeste.">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#f6f2ea;font-family:system-ui,sans-serif;user-select:none}
+  canvas{display:block;width:100vw;height:100vh}
+  .ui{position:fixed;z-index:5}
+  #modo{left:16px;top:16px;display:flex;gap:6px}
+  #modo button{border:2px solid #111;border-radius:999px;padding:6px 12px;font:700 12px system-ui;cursor:pointer;background:#fff;color:#111}
+  #modo button.on{background:#ff4f9a;color:#fff}
+  #contador{right:16px;top:16px;background:#fff;border:3px solid #111;padding:6px 14px;font:800 12px system-ui;color:#111;box-shadow:4px 4px 0 #111;display:none;text-align:right}
+  #contador b{display:block;color:#ff4f9a;font-size:26px;line-height:1.1}
+  #legenda{left:50%;top:64px;transform:translateX(-50%);background:#fff;border:3px solid #111;padding:10px 16px;width:max-content;max-width:min(560px,86vw);font:600 15px/1.45 system-ui;color:#111;box-shadow:4px 4px 0 #111;display:none}
+  #legenda b{color:#ff4f9a}
+  #fala{left:50%;bottom:22px;transform:translateX(-50%);display:none;align-items:flex-end;width:min(720px,94vw)}
+  #fala .ret{width:170px;height:190px;flex:none;background:#fff;border:3px solid #111;box-shadow:4px 4px 0 #111;overflow:hidden}
+  #fala .ret svg{width:100%;height:100%;display:block}
+  #fala .balao{position:relative;margin:0 0 46px 18px;background:#fff;border:3px solid #111;border-radius:26px;padding:16px 20px;font:700 18px/1.35 system-ui;color:#111;flex:1;box-shadow:4px 4px 0 #111}
+  #fala .nome{position:absolute;top:-14px;left:18px;background:#111;color:#fff;font:800 12px system-ui;padding:3px 10px}
+  #fala.vila .nome{background:#ff4f9a}
+  #fala.vila .balao{border-radius:4px;font-size:21px}
+  #dica{right:18px;bottom:16px;font:800 12px system-ui;color:#111;background:#fff;border:2px solid #111;padding:5px 10px;display:none;animation:pisca 1.2s infinite}
+  @keyframes pisca{50%{opacity:.3}}
+  .tela{inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:rgba(255,255,255,.4);text-align:center;padding:16px;box-sizing:border-box}
+  .tela h1{margin:0;font:900 clamp(36px,8vw,84px)/0.92 system-ui;color:#111;letter-spacing:-1px;text-shadow:4px 4px 0 #ff4f9a}
+  .tela p{margin:0;font:700 15px/1.45 system-ui;color:#111;background:#fff;border:2px solid #111;padding:6px 12px;max-width:520px}
+  .tela button{font:800 15px system-ui;padding:10px 18px;border:3px solid #111;background:#ff4f9a;color:#fff;cursor:pointer;box-shadow:4px 4px 0 #111}
+  .tela button.sec{background:#fff;color:#111}
+  #fim{display:none}
+  @media (max-width:600px){#fala .ret{width:110px;height:124px}#fala .balao{font-size:15px;margin-bottom:30px}#legenda{font-size:13px}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+"three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="modo" class="ui">
+  <button data-modo="pb" class="on">P&amp;B + rosa</button>
+  <button data-modo="cor">Colorido</button>
+</div>
+<div id="contador" class="ui">máquinas infectadas<b id="num">0</b></div>
+<div id="legenda" class="ui"></div>
+<div id="fala" class="ui"><div class="ret"></div><div class="balao"><span class="nome"></span><span class="txt"></span></div></div>
+<div id="dica" class="ui">clique para continuar</div>
+<div id="capa" class="ui tela">
+  <h1>Encaminhado<br>com Frequência</h1>
+  <p>Você é o vírus. Tudo começa num pendrive esquecido na LAN House de Santa Rita do Oeste.</p>
+  <button id="jogar">Começar</button>
+</div>
+<div id="fim" class="ui tela">
+  <h1>Continua...</h1>
+  <p id="fimtxt"></p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+    <button id="denovo">Ver de novo</button>
+    <button id="passear" class="sec">Passear pela cidade</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.7;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.5, 4000);
+const CAM_ABERTURA = [new THREE.Vector3(70, 46, 74), new THREE.Vector3(0, 3, 0)];
+camera.position.copy(CAM_ABERTURA[0]);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(CAM_ABERTURA[1]);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.46;
+controls.minDistance = 10; controls.maxDistance = 220;
+controls.autoRotate = true; controls.autoRotateSpeed = 0.35;
+controls.enabled = false;
+
+// ---------- ceu e luz ----------
+const sky = new Sky(); sky.scale.setScalar(3000); scene.add(sky);
+const su = sky.material.uniforms;
+su.turbidity.value = 5; su.rayleigh.value = 1.6; su.mieCoefficient.value = 0.005; su.mieDirectionalG.value = 0.82;
+const solDir = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(40), THREE.MathUtils.degToRad(140));
+su.sunPosition.value.copy(solDir);
+scene.add(new THREE.HemisphereLight(0xcfe2ff, 0x6a5532, 1.2));
+const sun = new THREE.DirectionalLight(0xfff6ea, 3.4);
+sun.position.copy(solDir).multiplyScalar(150);
+sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096);
+Object.assign(sun.shadow.camera, { left: -80, right: 80, top: 80, bottom: -80, near: 1, far: 400 });
+sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+scene.fog = new THREE.Fog(0xcfe3f5, 140, 620);
+
+// ---------- materiais toon ----------
+const tons = new THREE.DataTexture(new Uint8Array([90, 175, 255]), 3, 1, THREE.RedFormat);
+tons.minFilter = tons.magFilter = THREE.NearestFilter; tons.needsUpdate = true;
+const cache = {};
+const mat = (c, o = {}) => {
+  const k = c + JSON.stringify(o);
+  if (!cache[k]) { const { flatShading, roughness, metalness, ...r } = o; cache[k] = new THREE.MeshToonMaterial({ color: c, gradientMap: tons, ...r }); }
+  return cache[k];
+};
+const janela = new THREE.MeshToonMaterial({ color: 0x2b3b4d, gradientMap: tons });
+const rosaMat = new THREE.MeshToonMaterial({ color: 0xff4f9a, gradientMap: tons, emissive: 0xff2a80, emissiveIntensity: 0.7 });
+
+function malha(geo, m, x, y, z, pai = scene) {
+  const o = new THREE.Mesh(geo, m); o.position.set(x, y, z);
+  o.castShadow = o.receiveShadow = true; pai.add(o); return o;
+}
+const box = (w, h, d, c, x, y, z, pai) => malha(new THREE.BoxGeometry(w, h, d), typeof c === 'number' ? mat(c) : c, x, y, z, pai);
+const telhadoGeo = new THREE.ConeGeometry(1, 1, 4, 1); telhadoGeo.rotateY(Math.PI / 4);
+function telhado(w, d, alt, y, cor, pai) {
+  const t = malha(telhadoGeo, mat(cor), 0, y + alt / 2, 0, pai); t.scale.set(w * 0.8, alt, d * 0.8); return t;
+}
+function placa(txt, bg, fg, w, h) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = bg; g.fillRect(0, 0, 512, 128);
+  g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(8, 8, 496, 112);
+  g.fillStyle = fg; g.font = 'bold 58px system-ui, sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, 256, 68, 470);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
+}
+
+// ---------- terreno ----------
+const estrada = (x) => Math.sin(x * 0.012) * 18 * THREE.MathUtils.smoothstep(x, 60, 160);
+function altura(x, z) {
+  const d = Math.max(Math.abs(x), Math.abs(z));
+  let f = THREE.MathUtils.smoothstep(d, 70, 210);
+  if (x > 20) f *= THREE.MathUtils.smoothstep(Math.abs(z - estrada(x)), 7, 40);
+  const n = Math.sin(x * 0.028) * Math.cos(z * 0.024) * 16 + Math.sin(x * 0.011 + z * 0.017) * 26
+          + Math.sin(z * 0.06 + 1) * Math.cos(x * 0.05) * 5;
+  return (n + 26) * f;
+}
+{
+  const gg = new THREE.PlaneGeometry(1400, 1400, 200, 200); gg.rotateX(-Math.PI / 2);
+  const p = gg.attributes.position, cols = [];
+  const c1 = new THREE.Color(0x7aa647), c2 = new THREE.Color(0x4c7a30), c3 = new THREE.Color(0x9a8a4a), c = new THREE.Color();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i), h = altura(x, z);
+    p.setY(i, h);
+    c.copy(c1).lerp(c2, Math.min(h / 40, 1)).lerp(c3, Math.random() * 0.12 + (h > 45 ? 0.2 : 0));
+    cols.push(c.r, c.g, c.b);
+  }
+  gg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  gg.computeVertexNormals();
+  const chao = new THREE.Mesh(gg, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: tons }));
+  chao.receiveShadow = true; scene.add(chao);
+}
+{
+  const pts = [];
+  for (let x = 21; x <= 700; x += 4) pts.push(new THREE.Vector3(x, 0, estrada(x)));
+  const pos = [], idx = [];
+  pts.forEach((pt, i) => {
+    const nx = pts[Math.min(i + 1, pts.length - 1)], pv = pts[Math.max(i - 1, 0)];
+    const dir = nx.clone().sub(pv).normalize(), lat = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(3.2);
+    const a = pt.clone().add(lat), b = pt.clone().sub(lat);
+    a.y = altura(a.x, a.z) + 0.08; b.y = altura(b.x, b.z) + 0.08;
+    pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    if (i) { const k = i * 2; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); }
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, mat(0xa4532e, { side: THREE.DoubleSide })); m.receiveShadow = true; scene.add(m);
+}
+
+// ---------- ruas, praca, coreto ----------
+box(44, 0.1, 44, 0x8d867c, 0, 0.05, 0);
+for (const [w, d, x, z] of [[72, 5, 0, 33], [72, 5, 0, -33], [5, 72, 33, 0], [5, 72, -33, 0], [5, 40, 0, 52], [40, 5, -52, 0]])
+  box(w, 0.08, d, 0xb0643b, x, 0.04, z);
+box(30, 0.35, 30, 0xdcd2c0, 0, 0.17, 0);
+box(30, 0.37, 3, 0xc9b9a0, 0, 0.18, 0); box(3, 0.37, 30, 0xc9b9a0, 0, 0.18, 0);
+for (const [x, z] of [[-8, -8], [8, -8], [-8, 8], [8, 8]]) box(10, 0.4, 10, 0x6f9e3d, x, 0.2, z);
+{
+  const g = new THREE.Group(); scene.add(g);
+  malha(new THREE.CylinderGeometry(4.2, 4.4, 0.9, 8), mat(0xf5f0e6), 0, 0.8, 0, g);
+  for (let i = 0; i < 8; i++) {
+    const a = i / 8 * Math.PI * 2;
+    malha(new THREE.CylinderGeometry(0.14, 0.14, 3.4, 8), mat(0xffffff), Math.cos(a) * 3.8, 2.9, Math.sin(a) * 3.8, g);
+  }
+  malha(new THREE.ConeGeometry(5, 2.4, 8), mat(0x2f7d5b), 0, 5.8, 0, g);
+  malha(new THREE.SphereGeometry(0.3, 10, 8), mat(0xd4a017), 0, 7.1, 0, g);
+}
+for (const [x, z, r] of [[-5, -2.5, 0], [5, -2.5, 0], [-5, 2.5, Math.PI], [5, 2.5, Math.PI], [-2.5, 5, Math.PI / 2], [2.5, -5, -Math.PI / 2]]) {
+  const g = new THREE.Group(); g.position.set(x, 0.35, z); g.rotation.y = r; scene.add(g);
+  box(2.2, 0.12, 0.6, 0x7a4a2a, 0, 0.5, 0, g); box(2.2, 0.5, 0.1, 0x7a4a2a, 0, 0.85, -0.28, g);
+  box(0.1, 0.5, 0.5, 0x333333, -0.9, 0.25, 0, g); box(0.1, 0.5, 0.5, 0x333333, 0.9, 0.25, 0, g);
+}
+for (const [x, z] of [[15, 15], [15, -15], [-15, 15], [-15, -15], [15, 0], [-15, 0], [0, 15], [0, -15]]) {
+  malha(new THREE.CylinderGeometry(0.1, 0.14, 4.5, 8), mat(0x2d2d33), x, 2.4, z);
+  malha(new THREE.SphereGeometry(0.35, 12, 10), mat(0xfff1cc), x, 4.8, z);
+}
+
+// ---------- arvores ----------
+const copaGeo = new THREE.IcosahedronGeometry(1, 0);
+function arvore(x, z, cor, s = 1, y = 0) {
+  const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = Math.random() * 6; scene.add(g);
+  malha(new THREE.CylinderGeometry(0.22 * s, 0.34 * s, 2.6 * s, 6), mat(0x5b3a24), 0, 1.3 * s, 0, g);
+  const m = mat(cor);
+  for (let i = 0; i < 4; i++) {
+    const c = malha(copaGeo, m, (Math.random() - 0.5) * 1.6 * s, (2.9 + Math.random() * 1.1) * s, (Math.random() - 0.5) * 1.6 * s, g);
+    c.scale.setScalar((1.1 + Math.random() * 0.6) * s);
+  }
+  return g;
+}
+const IPE_AMARELO = 0xf4c21f, IPE_BRANCO = 0xf4f1ea, VERDE = 0x4f8a37, VERDE2 = 0x3e7a3a;
+for (const [x, z] of [[-12.5, -12.5], [12.5, 12.5]]) arvore(x, z, IPE_AMARELO, 1.25, 0.35);
+for (const [x, z] of [[12.5, -12.5], [-12.5, 12.5]]) arvore(x, z, IPE_BRANCO, 1.25, 0.35);
+for (const [x, z] of [[-8, -8], [8, 8], [-8, 8], [8, -8]]) arvore(x, z, VERDE, 0.8, 0.4);
+function palmeira(x, z) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g);
+  malha(new THREE.CylinderGeometry(0.28, 0.38, 13, 8), mat(0xb8ad98), 0, 6.5, 0, g);
+  for (let i = 0; i < 7; i++) {
+    const f = new THREE.Group(); f.position.y = 13; f.rotation.y = i / 7 * Math.PI * 2; g.add(f);
+    const fo = box(0.5, 0.1, 4.2, mat(0x3f7f35), 0, 0, 2, f); f.rotation.x = 0.5; fo.rotation.x = 0.25;
+  }
+}
+palmeira(-9, -19); palmeira(9, -19);
+
+// ---------- casas ----------
+const CORES = [0xf2cf63, 0x86bfe6, 0xa6d49e, 0xf6efe0, 0xe89a5d, 0xc6a2e2, 0x76c9c0, 0xffd7a8];
+const BARRADO = [0x3b6fa8, 0x2f7d5b, 0xb5452f, 0x7a4a2a];
+const casas = [];
+function casa(x, z, opts = {}) {
+  const w = opts.w ?? 5 + Math.random() * 1.6, d = opts.d ?? 5.5 + Math.random(), h = opts.h ?? 3 + Math.random() * 0.6;
+  const cor = opts.cor ?? CORES[Math.floor(Math.random() * CORES.length)];
+  const g = new THREE.Group(); g.position.set(x, 0, z);
+  g.rotation.y = opts.rot ?? Math.atan2(-x, -z); scene.add(g);
+  const parede = box(w, h, d, cor, 0, h / 2, 0, g);
+  box(w + 0.04, 0.7, d + 0.04, BARRADO[Math.floor(Math.random() * BARRADO.length)], 0, 0.35, 0, g);
+  telhado(w + 0.8, d + 0.8, 1.7 + Math.random() * 0.4, h, Math.random() < 0.8 ? 0xb4502c : 0x8e3f24, g);
+  box(1.1, 2.1, 0.12, 0x6b3e22, 0, 1.05, d / 2 + 0.03, g);
+  for (const s of [-1, 1]) {
+    box(1.1, 1.1, 0.1, janela, s * w * 0.3, 1.85, d / 2 + 0.04, g);
+    box(1.3, 0.12, 0.2, 0xffffff, s * w * 0.3, 1.25, d / 2 + 0.08, g);
+  }
+  if (opts.placa) {
+    const p = placa(opts.placa, opts.bg ?? '#fff6e0', opts.fg ?? '#7a2a1a', Math.min(w * 0.85, 4.6), 0.75);
+    p.position.set(0, h - 0.35, d / 2 + 0.09); g.add(p);
+  }
+  const c = { g, parede, id: opts.id, inf: false, pulso: 0, maq: opts.maq ?? 1 + Math.floor(Math.random() * 4) };
+  casas.push(c); return c;
+}
+const LOJAS = {
+  'S-10.5': { placa: 'PADARIA PÃO QUENTE', bg: '#ffe9b8', fg: '#8a3b12', maq: 3 },
+  'S3.5': { placa: 'FARMÁCIA', bg: '#e8fff0', fg: '#137a3a', maq: 4 },
+  'W-10.5': { placa: 'BAR DO JURA', bg: '#ffe2c2', fg: '#a12b1f', maq: 2 },
+  'W10.5': { placa: 'MERCADINHO', bg: '#fff', fg: '#1e4f9a', maq: 3 },
+  'E10.5': { placa: 'DANDARA TEC', bg: '#151526', fg: '#ffd23e', maq: 6 },
+  'E-10.5': { placa: 'LAN HOUSE', bg: '#101820', fg: '#3ef0c0', maq: 12 },
+  'S-3.5': { placa: 'PREFEITURA', bg: '#f4f4f4', fg: '#1d3b6e', maq: 9 },
+};
+for (const t of [-17.5, -10.5, -3.5, 3.5, 10.5, 17.5]) {
+  if (Math.abs(t) > 4) casa(t, -25, { id: 'N' + t });
+  casa(t, 25, { id: 'S' + t, ...(LOJAS['S' + t] ?? {}) });
+  casa(-25, t, { id: 'W' + t, ...(LOJAS['W' + t] ?? {}) });
+  if (Math.abs(t) > 4) casa(25, t, { id: 'E' + t, ...(LOJAS['E' + t] ?? {}) });
+}
+for (let t = -40; t <= 40; t += 8.5) {
+  for (const [x, z] of [[t, -40], [t, 40], [-40, t], [40, t]]) {
+    if (Math.random() < 0.25) continue;
+    if (x > 30 && Math.abs(z) < 9) continue;
+    if (Math.abs(x) < 5 && z > 30) continue;
+    if (x < -30 && Math.abs(z) < 5) continue;
+    casa(x + (Math.random() - 0.5) * 2, z + (Math.random() - 0.5) * 2, {});
+    if (Math.random() < 0.5) arvore(x * 1.12 + (Math.random() - 0.5) * 3, z * 1.12 + (Math.random() - 0.5) * 3,
+      [VERDE, VERDE2, IPE_AMARELO, 0x6a9a2e][Math.floor(Math.random() * 4)], 0.9 + Math.random() * 0.4);
+  }
+}
+const achar = (id) => casas.find(c => c.id === id);
+const LAN = achar('E-10.5'), BAR = achar('W-10.5'), INFO = achar('E10.5'), TIA = achar('S10.5');
+
+// ---------- igreja ----------
+{
+  const g = new THREE.Group(); g.position.set(0, 0, -32); scene.add(g);
+  const BR = 0xfbf7ee, AZ = 0x2f5f9e;
+  box(11, 9, 17, BR, 0, 4.5, 0, g); box(11.1, 0.8, 17.1, AZ, 0, 0.4, 0, g);
+  telhado(12.5, 18.5, 3.2, 9, 0xa9482a, g);
+  for (const s of [-1, 1]) {
+    box(3.4, 15, 3.4, BR, s * 4, 7.5, 7.6, g);
+    box(3.5, 0.5, 3.5, AZ, s * 4, 9.2, 7.6, g); box(3.5, 0.5, 3.5, AZ, s * 4, 15, 7.6, g);
+    box(1, 1.8, 0.1, janela, s * 4, 12.6, 9.33, g);
+    const t = malha(telhadoGeo, mat(AZ), s * 4, 17, 7.6, g); t.scale.set(2.8, 3.6, 2.8);
+    box(0.15, 1.4, 0.15, 0xd4a017, s * 4, 19.4, 7.6, g); box(0.8, 0.15, 0.15, 0xd4a017, s * 4, 19.6, 7.6, g);
+  }
+  box(4.6, 3.2, 0.5, BR, 0, 10.6, 8.3, g);
+  malha(new THREE.CircleGeometry(0.9, 24), mat(0xffffff), 0, 10.8, 8.57, g);
+  box(2.6, 4.4, 0.15, 0x5a3420, 0, 2.2, 8.52, g);
+  for (const s of [-1, 1]) box(1.1, 2.2, 0.12, janela, s * 2, 5.6, 8.52, g);
+  for (const z of [-5, 0, 5]) for (const s of [-1, 1]) box(0.12, 2.4, 1.2, janela, s * 5.53, 5, z, g);
+  box(12, 0.5, 4, 0xe5ddcc, 0, 0.25, 10.5, g);
+}
+
+// ---------- rodoviaria e onibus ----------
+{
+  const g = new THREE.Group(); g.position.set(48, 0, 10); scene.add(g);
+  box(10, 3.4, 5, 0xf2e6c8, 0, 1.7, 2, g);
+  telhado(10.6, 5.6, 1.2, 3.4, 0xb4502c, g).position.z = 2;
+  box(16, 0.3, 6, 0xeeeeee, 0, 4.3, -3.2, g);
+  for (const x of [-7, -2.4, 2.4, 7]) malha(new THREE.CylinderGeometry(0.15, 0.15, 4.2, 8), mat(0x3b6fa8), x, 2.1, -5.6, g);
+  box(16, 0.3, 4, 0xbdb6aa, 0, 0.15, -3.5, g);
+  const p = placa('RODOVIÁRIA', '#1d3b6e', '#ffffff', 6, 1); p.position.set(0, 5, -6.21); p.rotation.y = Math.PI; g.add(p);
+}
+const onibus = new THREE.Group(); scene.add(onibus);
+box(10, 2.6, 2.6, 0xf7f7f2, 0, 1.75, 0, onibus);
+box(10.02, 0.5, 2.62, 0x1f8a4c, 0, 1.0, 0, onibus);
+box(10.02, 0.18, 2.62, 0xf4c21f, 0, 1.35, 0, onibus);
+box(8.6, 0.9, 2.64, janela, -0.4, 2.35, 0, onibus);
+for (const x of [-3.3, 3.2]) for (const z of [-1.3, 1.3]) {
+  const r = malha(new THREE.CylinderGeometry(0.55, 0.55, 0.4, 16), mat(0x1a1a1a), x, 0.55, z, onibus); r.rotation.x = Math.PI / 2;
+}
+onibus.position.set(48, 0.08, 1.4); onibus.rotation.y = Math.PI;
+
+// ---------- longe ----------
+for (let i = 0; i < 240; i++) {
+  const a = Math.random() * Math.PI * 2, r = 70 + Math.random() * 300;
+  const x = Math.cos(a) * r, z = Math.sin(a) * r;
+  if (x > 20 && Math.abs(z - estrada(x)) < 9) continue;
+  const tree = arvore(x, z, [VERDE, VERDE2, 0x5d8f2a, IPE_AMARELO][i % 13 === 0 ? 3 : i % 3], 1 + Math.random() * 0.8, altura(x, z) - 0.2);
+  if (r > 200) tree.traverse(o => o.castShadow = false);
+}
+const nuvens = [];
+for (let i = 0; i < 14; i++) {
+  const g = new THREE.Group(); g.position.set((Math.random() - 0.5) * 900, 90 + Math.random() * 60, (Math.random() - 0.5) * 900);
+  for (let k = 0; k < 5; k++) {
+    const c = new THREE.Mesh(copaGeo, mat(0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.2 }));
+    c.position.set(k * 6 - 12, Math.random() * 3, (Math.random() - 0.5) * 6);
+    c.scale.set(7 + Math.random() * 5, 4 + Math.random() * 2, 6 + Math.random() * 3); g.add(c);
+  }
+  scene.add(g); nuvens.push(g);
+}
+
+// ---------- gente ----------
+const PELE = [0x8d5524, 0xc68642, 0xe0ac69, 0xf1c27d, 0x5c3a21, 0xa86b3c];
+const gente = [];
+const corpoGeo = new THREE.CapsuleGeometry(0.3, 0.75, 4, 10), cabGeo = new THREE.SphereGeometry(0.25, 14, 10);
+const cabeloGeo = new THREE.SphereGeometry(0.27, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+for (let i = 0; i < 18; i++) {
+  const g = new THREE.Group(); scene.add(g);
+  malha(corpoGeo, mat(CORES[(i * 5) % CORES.length]), 0, 1.07, 0, g);
+  malha(cabGeo, mat(PELE[i % PELE.length]), 0, 1.85, 0, g);
+  malha(cabeloGeo, mat([0x1a120c, 0x3b2414, 0x6b4a2a][i % 3]), 0, 1.9, 0, g);
+  gente.push({ g, r: 10.5 + Math.random() * 3.5, a: Math.random() * 6.28, v: (Math.random() < 0.5 ? -1 : 1) * (0.04 + Math.random() * 0.06), f: Math.random() * 10 });
+}
+
+// ---------- pos-processamento: nanquim + reticula ----------
+const tam = new THREE.Vector2(); renderer.getDrawingBufferSize(tam);
+const rtCor = new THREE.WebGLRenderTarget(tam.x, tam.y, { type: THREE.HalfFloatType, samples: 4 });
+const rtNor = new THREE.WebGLRenderTarget(tam.x, tam.y, { depthTexture: new THREE.DepthTexture(tam.x, tam.y) });
+const normMat = new THREE.MeshNormalMaterial();
+const post = new THREE.ShaderMaterial({
+  uniforms: {
+    tCor: { value: rtCor.texture }, tNor: { value: rtNor.texture }, tDep: { value: rtNor.depthTexture },
+    res: { value: tam.clone() }, near: { value: camera.near }, far: { value: camera.far },
+    bw: { value: 1 }, esp: { value: renderer.getPixelRatio() },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tCor; uniform sampler2D tNor; uniform sampler2D tDep;
+    uniform vec2 res; uniform float near; uniform float far; uniform float bw; uniform float esp;
+    varying vec2 vUv;
+    float lz(vec2 uv){ float z = texture2D(tDep, uv).x * 2.0 - 1.0; return (2.0 * near * far) / (far + near - z * (far - near)); }
+    void main(){
+      vec2 px = esp / res;
+      vec3 c = texture2D(tCor, vUv).rgb;
+      float d0 = lz(vUv);
+      vec3 n0 = texture2D(tNor, vUv).rgb;
+      float e = 0.0;
+      vec2 o[4]; o[0] = vec2(px.x, 0.0); o[1] = vec2(-px.x, 0.0); o[2] = vec2(0.0, px.y); o[3] = vec2(0.0, -px.y);
+      for (int i = 0; i < 4; i++) {
+        vec2 uv = vUv + o[i];
+        float d = lz(uv);
+        e = max(e, smoothstep(0.03, 0.07, abs(d - d0) / min(d, d0)));
+        e = max(e, smoothstep(0.25, 0.45, distance(texture2D(tNor, uv).rgb, n0)));
+      }
+      e *= 1.0 - smoothstep(160.0, 520.0, d0);
+      c = toneMapping(c);
+      float lum = dot(c, vec3(0.299, 0.587, 0.114));
+      float rosa = smoothstep(0.08, 0.2, c.r - c.g) * smoothstep(-0.02, 0.06, c.b - c.g);
+      vec3 cinza = vec3(min(1.0, floor(pow(lum, 0.4) * 3.0 + 0.6) / 3.0 + 0.08));
+      c = mix(c, mix(cinza, c, rosa), bw);
+      float obj = 1.0 - step(far * 0.98, d0);
+      vec2 g = mod(gl_FragCoord.xy, 5.0 * esp) - 2.5 * esp;
+      float raio = (1.0 - smoothstep(0.04, 0.22, lum)) * 2.0 * esp;
+      float ponto = (1.0 - step(raio, length(g))) * obj;
+      c = mix(c, c * 0.3, ponto);
+      c = mix(c, vec3(1.0, 0.975, 0.94), 0.05);
+      c = mix(c, vec3(0.07, 0.05, 0.09), e);
+      gl_FragColor = linearToOutputTexel(vec4(c, 1.0));
+    }`,
+});
+const postCena = new THREE.Scene();
+const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post); quad.frustumCulled = false; postCena.add(quad);
+const postCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+document.querySelectorAll('#modo button').forEach(b => b.onclick = (ev) => {
+  ev.stopPropagation();
+  document.querySelectorAll('#modo button').forEach(x => x.classList.toggle('on', x === b));
+  post.uniforms.bw.value = b.dataset.modo === 'pb' ? 1 : 0;
+});
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight);
+  renderer.getDrawingBufferSize(tam); rtCor.setSize(tam.x, tam.y); rtNor.setSize(tam.x, tam.y);
+  post.uniforms.res.value.copy(tam);
+});
+
+// ---------- retratos manga ----------
+const TOM = '<defs><pattern id="tom" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="1.1" fill="#c9c4d6"/></pattern></defs>';
+const RETRATOS = {
+  tia: `<svg viewBox="30 128 180 202" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="700" height="400" fill="#fff6fa"/>
+<g stroke="#111" stroke-width="2" stroke-linejoin="round">
+<path d="M80 302 Q120 280 160 302 L172 328 L68 328 Z" fill="#e86fa8"/><rect x="110" y="270" width="20" height="22" fill="#f1c9a5"/>
+<path d="M75 205 Q72 255 100 278 L120 290 L140 278 Q168 255 165 205 Z" fill="#f6d3b3"/><circle cx="120" cy="150" r="22" fill="#d9d6e3"/>
+<path d="M70 215 Q66 160 120 158 Q174 160 170 215 Q160 185 140 182 Q120 192 98 182 Q80 186 70 215 Z" fill="#d9d6e3"/>
+<circle cx="99" cy="228" r="15" fill="none"/><circle cx="141" cy="228" r="15" fill="none"/><line x1="114" y1="228" x2="126" y2="228"/>
+<path d="M90 230 Q99 221 108 230" fill="none" stroke-width="2.5"/><path d="M132 230 Q141 221 150 230" fill="none" stroke-width="2.5"/>
+<path d="M104 258 Q120 274 136 258 Z" fill="#b8324f"/></g>
+<ellipse cx="88" cy="248" rx="8" ry="4" fill="#f4a3b8"/><ellipse cx="152" cy="248" rx="8" ry="4" fill="#f4a3b8"/></svg>`,
+  ana: `<svg viewBox="250 128 180 202" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="0" width="700" height="400" fill="#fff"/>
+<g stroke="#111" stroke-width="1" opacity="0.55"><line x1="340" y1="215" x2="245" y2="120"/><line x1="340" y1="215" x2="250" y2="200"/><line x1="340" y1="215" x2="248" y2="300"/><line x1="340" y1="215" x2="300" y2="325"/><line x1="340" y1="215" x2="380" y2="325"/><line x1="340" y1="215" x2="435" y2="300"/><line x1="340" y1="215" x2="435" y2="205"/><line x1="340" y1="215" x2="432" y2="125"/><line x1="340" y1="215" x2="255" y2="160"/><line x1="340" y1="215" x2="425" y2="165"/><line x1="340" y1="215" x2="260" y2="260"/><line x1="340" y1="215" x2="420" y2="270"/></g>
+<g stroke="#111" stroke-width="2" stroke-linejoin="round">
+<path d="M288 296 Q340 274 392 296 L402 328 L278 328 Z" fill="#2a2433"/><path d="M318 288 L340 304 L362 288" fill="none" stroke="#ff4f9a" stroke-width="3"/>
+<rect x="330" y="268" width="20" height="22" fill="#e8b98f"/><path d="M366 170 Q420 190 404 290 Q396 250 380 225 Z" fill="#17131c"/>
+<path d="M295 205 Q292 252 320 274 L340 286 L360 274 Q388 252 385 205 Z" fill="#f0c9a2"/>
+<path d="M288 230 Q282 160 340 154 Q398 160 392 230 L384 205 L372 222 L366 195 L352 214 L344 190 L330 214 L322 194 L310 220 L302 200 Z" fill="#17131c"/>
+<path d="M372 168 Q384 176 388 196" fill="none" stroke="#ff4f9a" stroke-width="3"/>
+<ellipse cx="318" cy="236" rx="13" ry="17" fill="#fff"/><ellipse cx="362" cy="236" rx="13" ry="17" fill="#fff"/>
+<ellipse cx="318" cy="238" rx="6" ry="8" fill="#c2185b"/><ellipse cx="362" cy="238" rx="6" ry="8" fill="#c2185b"/>
+<path d="M303 222 Q318 214 333 222" fill="none" stroke-width="3.5"/><path d="M347 222 Q362 214 377 222" fill="none" stroke-width="3.5"/>
+<path d="M305 208 L330 212" fill="none"/><path d="M350 212 L375 208" fill="none"/><ellipse cx="340" cy="264" rx="6" ry="8" fill="#7a1f35"/></g>
+<circle cx="321" cy="233" r="2.5" fill="#fff"/><circle cx="365" cy="233" r="2.5" fill="#fff"/>
+<path d="M394 214 Q402 226 396 234 Q388 228 394 214 Z" fill="#9fd8f5" stroke="#111" stroke-width="1.5"/></svg>`,
+  ze: `<svg viewBox="470 128 180 202" xmlns="http://www.w3.org/2000/svg">${TOM}<rect x="0" y="0" width="700" height="400" fill="#fff"/><rect x="0" y="0" width="700" height="400" fill="url(#tom)"/>
+<g stroke="#111" stroke-width="2" stroke-linejoin="round">
+<path d="M500 300 Q560 278 620 300 L630 328 L490 328 Z" fill="#c7e6c0"/><rect x="550" y="268" width="20" height="24" fill="#b47a4c"/>
+<path d="M512 200 Q508 255 540 276 L560 286 L580 276 Q612 255 608 200 Z" fill="#c68a5a"/>
+<path d="M490 205 Q560 186 630 205 Q600 214 560 213 Q520 214 490 205 Z" fill="#e8c46a"/><path d="M520 205 Q518 160 560 156 Q602 160 600 205 Z" fill="#e8c46a"/>
+<path d="M521 192 Q560 184 599 192 L600 202 Q560 194 520 202 Z" fill="#b5452f"/>
+<path d="M536 230 Q544 222 552 230 Q544 238 536 230" fill="none"/><path d="M568 230 Q576 222 584 230 Q576 238 568 230" fill="none"/>
+<path d="M538 252 Q560 242 582 252 Q570 258 560 254 Q550 258 538 252 Z" fill="#3b2414"/><path d="M545 266 Q560 274 575 266" fill="none"/>
+<rect x="588" y="262" width="26" height="44" rx="4" fill="#2a2433"/><rect x="592" y="268" width="18" height="30" fill="#ff4f9a"/></g>
+<path d="M520 236 Q526 248 520 254 Q514 248 520 236 Z" fill="#9fd8f5" stroke="#111" stroke-width="1.5"/>
+<path d="M605 214 Q612 226 606 233 Q598 226 605 214 Z" fill="#9fd8f5" stroke="#111" stroke-width="1.5"/></svg>`,
+};
+
+// ---------- contagio ----------
+let maquinas = 0, mostrado = 0;
+const fila = [], aneis = [];
+let relogio = 0;
+const anelGeo = new THREE.RingGeometry(0.85, 1, 64); anelGeo.rotateX(-Math.PI / 2);
+function anel(pos) {
+  const m = new THREE.Mesh(anelGeo, new THREE.MeshBasicMaterial({ color: 0xff4f9a, transparent: true, opacity: 0.9, depthWrite: false }));
+  m.position.set(pos.x, 0.6, pos.z); scene.add(m); aneis.push({ m, t: 0 });
+}
+function infectar(c) {
+  if (!c || c.inf) return;
+  c.inf = true; c.parede.material = rosaMat; c.pulso = 1; maquinas += c.maq;
+}
+function onda(origem, n, passo = 0.16, exceto = [INFO]) {
+  anel(origem.g.position);
+  const livres = casas.filter(c => !c.inf && !exceto.includes(c) && !fila.some(f => f.c === c))
+    .sort((a, b) => a.g.position.distanceTo(origem.g.position) - b.g.position.distanceTo(origem.g.position))
+    .slice(0, n);
+  livres.forEach((c, i) => fila.push({ c, t: relogio + 0.5 + i * passo }));
+}
+function resetar() {
+  for (const c of casas) { c.inf = false; c.pulso = 0; c.g.scale.setScalar(1); }
+  for (const c of casas) c.parede.material = c.paredeOriginal;
+  fila.length = 0; maquinas = 0; mostrado = 0;
+}
+casas.forEach(c => c.paredeOriginal = c.parede.material);
+
+// ---------- camera ----------
+let voo = null;
+function visao(c, dist = 17, alt = 5.5, lado = 0) {
+  const p = c.g.position, d = new THREE.Vector3(-p.x, 0, -p.z).normalize(), l = new THREE.Vector3(-d.z, 0, d.x);
+  return [p.clone().addScaledVector(d, dist).addScaledVector(l, lado).add(new THREE.Vector3(0, alt, 0)), new THREE.Vector3(p.x, 2.4, p.z)];
+}
+function voar(alvo, dur = 2.2) { voo = { p0: camera.position.clone(), a0: controls.target.clone(), p1: alvo[0], a1: alvo[1], t: 0, dur }; }
+const suave = k => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+
+// ---------- roteiro ----------
+const $ = s => document.querySelector(s);
+const legenda = $('#legenda'), fala = $('#fala'), dica = $('#dica'), contador = $('#contador');
+const PASSOS = [
+  { cam: visao(LAN), legenda: 'Santa Rita do Oeste. Terça-feira, 14h12.<br>Alguém esqueceu um pendrive na LAN House.' },
+  { legenda: 'O Thalisson achou. Plugou pra ver o que tinha.<br><b>Pronto. Você existe.</b>', acao: () => { infectar(LAN); anel(LAN.g.position); contador.style.display = 'block'; } },
+  { legenda: 'Dentro do pendrive tinha um "vídeo". O Thalisson mandou pra avó, a Dona Rosimeire.', acao: () => onda(LAN, 3) },
+  { cam: visao(TIA), fala: ['tia', 'Dona Rosimeire', 'Gente, que vídeo lindo! Encaminhem pra todo mundo!!!'], acao: () => { infectar(TIA); onda(TIA, 14, 0.12); } },
+  { cam: visao(BAR), fala: ['ze', 'Seu Jurandir', 'Instalei o ZapZap Gold que a Rosi mandou. Agora tá tudo rosa...'], acao: () => { infectar(BAR); onda(BAR, 16, 0.12); } },
+  { cam: [new THREE.Vector3(-10, 70, 78), new THREE.Vector3(0, 0, 2)], dur: 3,
+    legenda: 'Rádio Santa Rita, 16h:<br>"Especialistas da cidade culpam a antena nova do 5G."',
+    acao: () => { const resto = casas.filter(c => !c.inf && c !== INFO); const poupadas = resto.slice(0, 4); onda(LAN, 999, 0.05, [INFO, ...poupadas]); } },
+  { cam: visao(INFO, 14, 4.5), fala: ['ana', 'Dandara', 'Peraí... esse pendrive veio da LAN House?!', true], acao: () => tremer() },
+  { legenda: '<b>A Dandara percebeu você.</b><br>Ela é a única técnica da cidade. E agora ela está com raiva.' },
+];
+let passo = -1, travado = false, emCena = false;
+
+function mostrarFala(f) {
+  if (!f) { fala.style.display = 'none'; return; }
+  const [ret, nome, txt, vila] = f;
+  fala.querySelector('.ret').innerHTML = RETRATOS[ret];
+  fala.querySelector('.nome').textContent = nome;
+  fala.querySelector('.txt').textContent = txt;
+  fala.classList.toggle('vila', !!vila);
+  fala.style.display = 'flex';
+  fala.animate([{ transform: 'translate(-50%, 30px)', opacity: 0 }, { transform: 'translate(-50%, 0)', opacity: 1 }], { duration: 280, easing: 'ease-out' });
+}
+function tremer() {
+  renderer.domElement.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(-9px,5px)' }, { transform: 'translate(7px,-6px)' }, { transform: 'translate(-4px,3px)' }, { transform: 'translate(0,0)' }], { duration: 380, iterations: 2 });
+}
+function avancar() {
+  if (!emCena || travado) return;
+  passo++;
+  dica.style.display = 'none';
+  if (passo >= PASSOS.length) return terminar();
+  const p = PASSOS[passo];
+  legenda.style.display = 'none'; mostrarFala(null);
+  if (p.cam) voar(p.cam, p.dur ?? 2.2);
+  travado = true;
+  setTimeout(() => {
+    if (p.legenda) { legenda.innerHTML = p.legenda; legenda.style.display = 'block'; }
+    if (p.fala) mostrarFala(p.fala);
+    p.acao?.();
+    setTimeout(() => { travado = false; dica.style.display = 'block'; }, 700);
+  }, p.cam ? (p.dur ?? 2.2) * 1000 * 0.85 : 150);
+}
+function comecar() {
+  $('#capa').style.display = 'none'; $('#fim').style.display = 'none';
+  resetar(); contador.style.display = 'none';
+  controls.enabled = false; controls.autoRotate = false;
+  emCena = true; passo = -1; travado = false;
+  avancar();
+}
+function terminar() {
+  emCena = false; legenda.style.display = 'none'; mostrarFala(null);
+  const n = casas.filter(c => c.inf).length;
+  $('#fimtxt').innerHTML = `Em uma tarde você chegou a <b>${maquinas}</b> máquinas em ${n} das ${casas.length} casas. Só a Dandara Tec e umas casas sem internet escaparam.<br>Agora a Dandara sabe que você existe.`;
+  $('#fim').style.display = 'flex';
+  voar([new THREE.Vector3(62, 40, 66), new THREE.Vector3(0, 3, 0)], 3);
+}
+$('#jogar').onclick = (e) => { e.stopPropagation(); comecar(); };
+$('#denovo').onclick = (e) => { e.stopPropagation(); comecar(); };
+$('#passear').onclick = (e) => {
+  e.stopPropagation(); $('#fim').style.display = 'none';
+  controls.enabled = true; controls.autoRotate = true;
+};
+addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) avancar(); });
+addEventListener('keydown', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); avancar(); } });
+controls.addEventListener('start', () => controls.autoRotate = false);
+
+// ---------- loop ----------
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  relogio += dt;
+  for (const p of gente) {
+    p.a += p.v * dt;
+    p.g.position.set(Math.cos(p.a) * p.r, 0.35 + Math.abs(Math.sin(t * 7 + p.f)) * 0.07, Math.sin(p.a) * p.r);
+  }
+  for (const n of nuvens) { n.position.x += dt * 2.5; if (n.position.x > 500) n.position.x = -500; }
+  for (let i = fila.length - 1; i >= 0; i--) if (fila[i].t <= relogio) { infectar(fila[i].c); fila.splice(i, 1); }
+  for (const c of casas) if (c.pulso > 0) { c.pulso = Math.max(0, c.pulso - dt * 2.2); c.g.scale.setScalar(1 + Math.sin(c.pulso * Math.PI) * 0.12); }
+  for (let i = aneis.length - 1; i >= 0; i--) {
+    const a = aneis[i]; a.t += dt;
+    a.m.scale.setScalar(1 + a.t * 22); a.m.material.opacity = Math.max(0, 0.9 - a.t * 0.55);
+    if (a.t > 1.7) { scene.remove(a.m); a.m.material.dispose(); aneis.splice(i, 1); }
+  }
+  rosaMat.emissiveIntensity = 0.75 + Math.sin(t * 4) * 0.2;
+  if (mostrado < maquinas) { mostrado = Math.min(maquinas, mostrado + Math.max(1, (maquinas - mostrado) * dt * 4)); $('#num').textContent = Math.floor(mostrado); }
+  if (voo) {
+    voo.t += dt; const k = suave(Math.min(1, voo.t / voo.dur));
+    camera.position.lerpVectors(voo.p0, voo.p1, k); controls.target.lerpVectors(voo.a0, voo.a1, k);
+    if (k >= 1) voo = null;
+  }
+  controls.update();
+  scene.overrideMaterial = normMat;
+  for (const a of aneis) a.m.visible = false;
+  renderer.setRenderTarget(rtNor); renderer.render(scene, camera);
+  scene.overrideMaterial = null;
+  for (const a of aneis) a.m.visible = true;
+  renderer.shadowMap.needsUpdate = true;
+  renderer.setRenderTarget(rtCor); renderer.render(scene, camera);
+  renderer.setRenderTarget(null); renderer.render(postCena, postCam);
+});
+</script>
+</body>
+</html>
