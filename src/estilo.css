@@ -1,0 +1,134 @@
+:root { --tinta: #111; --rosa: #ff4f9a; --papel: #fff; --amarelo: #ffd23e; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #f6f2ea; font-family: system-ui, sans-serif; user-select: none; color: var(--tinta); }
+canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+.ui { position: fixed; z-index: 5; }
+button { font: 800 14px system-ui; cursor: pointer; border: 2px solid var(--tinta); background: var(--papel); color: var(--tinta); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.grande { font-size: 15px; padding: 10px 18px; border-width: 3px; background: var(--rosa); color: #fff; box-shadow: 4px 4px 0 var(--tinta); }
+button.grande.sec { background: var(--papel); color: var(--tinta); }
+.quadro { background: var(--papel); border: 3px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); }
+
+#modo { left: 16px; top: 16px; display: flex; gap: 6px; z-index: 9; }
+#modo button { border-radius: 999px; padding: 6px 12px; font-size: 12px; }
+#modo button.on { background: var(--rosa); color: #fff; }
+
+.tela { inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: rgba(255,255,255,.45); text-align: center; padding: 16px; box-sizing: border-box; z-index: 8; }
+.tela.ativa { display: flex; }
+.tela h1 { margin: 0; font: 900 clamp(36px, 8vw, 84px)/0.92 system-ui; letter-spacing: -1px; text-shadow: 4px 4px 0 var(--rosa); }
+.tela h2 { margin: 0; font: 900 clamp(22px, 4vw, 34px) system-ui; background: var(--papel); border: 3px solid var(--tinta); padding: 6px 14px; box-shadow: 4px 4px 0 var(--tinta); }
+.tela > p { margin: 0; font: 700 15px/1.45 system-ui; background: var(--papel); border: 2px solid var(--tinta); padding: 6px 12px; max-width: 520px; }
+.rodape { font: 700 12px system-ui; background: var(--papel); padding: 3px 8px; border: 2px solid var(--tinta); }
+
+#legenda { left: 50%; top: 64px; transform: translateX(-50%); width: max-content; max-width: min(560px, 86vw); font: 600 15px/1.45 system-ui; padding: 10px 16px; display: none; background: var(--papel); border: 3px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); z-index: 9; }
+#legenda b { color: var(--rosa); }
+#dica { right: 18px; bottom: 16px; font: 800 12px system-ui; background: var(--papel); border: 2px solid var(--tinta); padding: 5px 10px; display: none; animation: pisca 1.2s infinite; z-index: 9; }
+@keyframes pisca { 50% { opacity: .3; } }
+
+#tipos { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 960px; }
+.tipo { width: 260px; text-align: left; background: var(--papel); border: 3px solid var(--tinta); box-shadow: 5px 5px 0 var(--tinta); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.tipo h3 { margin: 0; font: 900 24px system-ui; }
+.tipo p { margin: 0; font: 500 14px/1.4 system-ui; }
+.tipo .metatipo { font-weight: 800; color: var(--rosa); }
+.tipo .dif { font: 800 12px system-ui; }
+
+#hud { inset: 0; pointer-events: none; display: none; }
+#hud.ativo { display: block; }
+#hud > * { pointer-events: auto; }
+#relogio { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; background: var(--papel); border: 3px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); padding: 4px 6px 4px 12px; }
+#hora { font: 900 15px system-ui; margin-right: 6px; min-width: 104px; }
+#relogio button { width: 32px; height: 30px; padding: 0; font-size: 14px; }
+#relogio button.on { background: var(--tinta); color: #fff; }
+#placar { position: absolute; right: 14px; top: 14px; width: 230px; background: var(--papel); border: 3px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); padding: 10px 12px; font: 600 13px system-ui; display: flex; flex-direction: column; gap: 6px; }
+.linha { display: flex; justify-content: space-between; align-items: baseline; }
+.linha b { font: 900 18px system-ui; }
+.meta { font-weight: 800; }
+.barra { height: 9px; border: 2px solid var(--tinta); background: var(--papel); margin-top: 3px; }
+.barra i { display: block; height: 100%; width: 0; background: var(--rosa); transition: width .3s; }
+.barra.vac i { background: var(--tinta); }
+.dandara { border-top: 2px dashed var(--tinta); padding-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.dandara .barra i { background: var(--amarelo); }
+.mini { font: 700 11px system-ui; }
+#humor.furiosa { background: var(--tinta); color: var(--amarelo); padding: 0 6px; }
+#evoluir { position: absolute; left: 14px; bottom: 14px; font-size: 17px; padding: 12px 18px; border-width: 3px; background: var(--rosa); color: #fff; box-shadow: 4px 4px 0 var(--tinta); }
+#evoluir.pode { animation: pulsa 1s infinite; }
+@keyframes pulsa { 50% { transform: scale(1.06); } }
+#feed { position: absolute; right: 14px; bottom: 14px; width: min(360px, 60vw); display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
+#feed div { background: var(--papel); border: 2px solid var(--tinta); padding: 5px 9px; font: 600 12.5px/1.35 system-ui; box-shadow: 3px 3px 0 var(--tinta); animation: entra .3s ease-out; }
+#feed div.dandara { background: var(--tinta); color: #fff; }
+#feed div.voce { border-color: var(--rosa); }
+@keyframes entra { from { transform: translateX(30px); opacity: 0; } }
+
+#casa { left: 14px; top: 64px; width: 300px; max-height: calc(100vh - 160px); overflow: auto; background: var(--papel); border: 3px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); padding: 12px 14px; display: none; font: 500 13px/1.4 system-ui; }
+#casa h3 { margin: 0 0 4px; font: 900 19px system-ui; }
+#casa .fechar { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; padding: 0; }
+#casa ul { margin: 6px 0; padding-left: 18px; }
+#casa .tags { color: #555; font-size: 12px; }
+#casa .aparelhos { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+#casa .ap { border: 2px solid var(--tinta); padding: 1px 6px; font: 700 12px system-ui; }
+#casa .ap.inf { background: var(--rosa); color: #fff; }
+#casa .ap.prot { border-style: dashed; color: #777; }
+#casa .acoes { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+#casa .acoes button { padding: 8px; text-align: left; }
+#casa .acoes button.forte { background: var(--rosa); color: #fff; }
+#casa .segredo { background: var(--tinta); color: #fff; padding: 4px 8px; font-weight: 700; margin: 6px 0; }
+
+#arvore { align-items: stretch; overflow: auto; }
+#arvore .caixa, #fim .caixa { background: var(--papel); border: 3px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); max-width: 980px; margin: auto; padding: 16px 20px; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+#arvore .sub { margin: 0; font: 500 14px system-ui; }
+#habs { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.hab { border: 3px solid var(--tinta); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font: 500 13px/1.4 system-ui; }
+.hab.tem { background: #ffe3ef; }
+.hab h4 { margin: 0; font: 900 16px system-ui; display: flex; justify-content: space-between; gap: 8px; }
+.hab details { font-size: 12.5px; }
+.hab summary { font-weight: 800; cursor: pointer; }
+.hab .req { font: 700 12px system-ui; color: #666; }
+.hab button { padding: 7px; }
+.hab button.comprar { background: var(--rosa); color: #fff; }
+
+#fala { left: 50%; bottom: 90px; transform: translateX(-50%); display: none; align-items: flex-end; width: min(640px, 92vw); z-index: 7; pointer-events: none; }
+#fala .ret { width: 130px; height: 146px; flex: none; background: var(--papel); border: 3px solid var(--tinta); box-shadow: 4px 4px 0 var(--tinta); overflow: hidden; }
+#fala .ret svg { width: 100%; height: 100%; display: block; }
+#fala .balao { position: relative; margin: 0 0 30px 16px; background: var(--papel); border: 3px solid var(--tinta); border-radius: 24px; padding: 14px 18px; font: 700 16px/1.35 system-ui; flex: 1; box-shadow: 4px 4px 0 var(--tinta); }
+#fala .nome { position: absolute; top: -14px; left: 18px; background: var(--tinta); color: #fff; font: 800 12px system-ui; padding: 3px 10px; }
+#fala.vila .nome { background: var(--amarelo); color: var(--tinta); }
+#fala.vila .balao { border-radius: 4px; }
+#fala.voce .nome { background: var(--rosa); }
+
+#tutorial { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(440px, 86vw); background: var(--papel); border: 3px solid var(--tinta); box-shadow: 6px 6px 0 var(--tinta); padding: 16px 18px; display: none; flex-direction: column; gap: 12px; z-index: 9; }
+#tutorial p { margin: 0; font: 600 15px/1.5 system-ui; }
+
+#fim h1 { text-shadow: 3px 3px 0 var(--rosa); font-size: clamp(30px, 6vw, 56px); }
+#fim h3 { margin: 6px 0 0; font: 900 16px system-ui; }
+#fimtexto { font: 600 15px/1.5 system-ui; margin: 0; }
+#fimstats { display: flex; gap: 10px; flex-wrap: wrap; }
+#fimstats span { border: 2px solid var(--tinta); padding: 4px 10px; font: 800 13px system-ui; }
+#relatorio { display: flex; flex-direction: column; gap: 6px; }
+#relatorio div { border-left: 6px solid var(--rosa); padding: 4px 10px; font: 500 13px/1.4 system-ui; }
+#relatorio b { display: block; }
+.botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+
+@media (max-width: 700px) {
+  #placar { width: 170px; padding: 7px 9px; font-size: 11px; top: 60px; }
+  .linha b { font-size: 15px; }
+  #relogio { top: 52px; left: 14px; transform: none; }
+  #hora { min-width: 86px; font-size: 13px; }
+  #feed { width: calc(100vw - 150px); bottom: 70px; }
+  #feed div:nth-child(n+3) { display: none; }
+  #casa { top: auto; bottom: 74px; left: 8px; right: 8px; width: auto; max-height: 48vh; }
+  #fala .ret { width: 90px; height: 101px; }
+  #fala .balao { font-size: 13px; }
+}
+#arvore, #fim { justify-content: flex-start; overflow: auto; padding-top: 58px; }
+#arvore .caixa, #fim .caixa { margin: 0 auto 24px; }
+#feed { width: min(300px, 38vw); }
+#fala { left: 14px; transform: none; bottom: 80px; width: min(520px, 58vw); }
+@media (max-width: 700px) {
+  #relogio { top: 52px; left: 8px; }
+  #placar { top: 98px; right: 8px; width: 158px; }
+  #feed { left: 8px; right: 8px; width: auto; bottom: 74px; }
+  #feed div:nth-child(n+3) { display: none; }
+  #fala { left: 8px; right: 8px; width: auto; bottom: 150px; }
+  #casa { bottom: 150px; }
+  .tela { padding-top: 60px; }
+  #tipos { flex-direction: column; align-items: center; }
+}
